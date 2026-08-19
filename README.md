@@ -39,8 +39,12 @@ The schema fixes the shape of a revision. Each engine keeps a free-form `spec`
 block for its own internals.
 
 ```yaml
-ci-state-git:       { path: ../golden-state }
-ci-state-dynamodb:  { table: ci-state, region: eu-west-1 }
+ci-state-git:
+  path: ../golden-state
+
+ci-state-dynamodb:
+  table: ci-state
+  region: eu-west-1
 ```
 
 Nothing in the core model knows about either.
