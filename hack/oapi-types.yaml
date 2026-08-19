@@ -1,0 +1,6 @@
+package: revisiontypes
+output: pkg/revisiontypes/zz_generated.types.go
+generate:
+  models: true
+output-options:
+  skip-prune: true
