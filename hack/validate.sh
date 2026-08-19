@@ -56,6 +56,65 @@ for case in cases["schema"]["invalid"]:
         failures.append("schema/invalid/%s must fail %s and did not"
                         % (case["case"], case["schema"]))
 
+
+def semantic_errors(doc):
+    """Rules a schema cannot express, because each one spans two fields.
+
+    Encoding these in the schema is how a schema grows a rule it should not
+    have, so they live here and the vectors assert they fail here only.
+    """
+    out = []
+
+    repos = doc.get("repos") or {}
+    dirty = doc.get("dirty")
+
+    if dirty is None:
+        return out
+
+    for name in dirty:
+        if name not in repos:
+            out.append("dirty names a repo the revision does not hold")
+            break
+
+    if list(dirty) != sorted(dirty):
+        out.append("dirty is not sorted")
+
+    if len(set(dirty)) != len(dirty):
+        out.append("dirty repeats a repo")
+
+    suffixed = str(doc.get("id", "")).endswith("-dirty")
+
+    if dirty and not suffixed:
+        out.append("a revision with dirty repos must carry the -dirty suffix")
+
+    if not dirty and suffixed:
+        out.append("a revision with no dirty repos must not carry the -dirty suffix")
+
+    return out
+
+
+# Both halves. A semantic vector must pass the schema, and must fail here.
+for case in cases["schema"].get("semantic", []):
+    errs = errors_for(case["schema"], case["doc"])
+
+    if errs:
+        failures.append("schema/semantic/%s must PASS the schema and did not: %s"
+                        % (case["case"], errs[0].message))
+
+    reasons = semantic_errors(case["doc"])
+
+    if case["error"] not in reasons:
+        failures.append("schema/semantic/%s must fail the validator with %r, got %r"
+                        % (case["case"], case["error"], reasons))
+
+# A vector that is meant to be valid must be clean on both halves too.
+for case in cases["schema"]["valid"]:
+    reasons = semantic_errors(case["doc"])
+
+    if reasons:
+        failures.append("schema/valid/%s must satisfy the validator too, got %r"
+                        % (case["case"], reasons))
+
 tools = {"get", "put", "list"}
 
 for case in cases["transport"]:
@@ -75,7 +134,9 @@ for f in failures:
     print("FAIL " + f, file=sys.stderr)
 
 print("checked %d schema vectors and %d transport cases over %d operations" % (
-    len(cases["schema"]["valid"]) + len(cases["schema"]["invalid"]),
+    len(cases["schema"]["valid"])
+    + len(cases["schema"]["invalid"])
+    + len(cases["schema"].get("semantic", [])),
     len(cases["transport"]),
     sum(len(c["ops"]) for c in cases["transport"]),
 ))

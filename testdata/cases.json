@@ -1,13 +1,16 @@
 {
   "_comment": [
-    "Conformance vectors for the revision model and the state transport.",
+    "Conformance vectors every state engine must pass.",
     "",
-    "schema holds documents that must validate or must not. transport holds",
-    "operation sequences every state engine must satisfy, whatever it stores",
-    "behind. ci-state-git and any future ci-state-dynamodb read THIS file.",
+    "schema.valid must pass the schema. schema.invalid must fail it.",
     "",
-    "The runner injects each engine's own spec into every op. Nothing here",
-    "knows what a path or a table is."
+    "schema.semantic is the third kind and the important one. Each must PASS the",
+    "schema and fail only in the validator. A schema cannot express a rule that",
+    "spans two fields, so trying to make it do so grows a rule it should not have.",
+    "hack/validate.sh asserts both halves, which is what stops that.",
+    "",
+    "transport is what a get, put and list must do, run against a real engine by",
+    "the conformance stage in forge-ci."
   ],
   "schema": {
     "valid": [
@@ -161,6 +164,89 @@
         "error": "found",
         "doc": {
           "payload": "{}"
+        }
+      }
+    ],
+    "semantic": [
+      {
+        "case": "dirty-names-a-repo-the-revision-does-not-hold",
+        "schema": "Revision",
+        "why": "dirty lists repos with uncommitted changes, so a name that is not a member is a revision nobody can act on",
+        "error": "dirty names a repo the revision does not hold",
+        "doc": {
+          "id": "aaaa1111-dirty",
+          "createdAt": "2026-08-19T10:00:00Z",
+          "repos": {
+            "golden-go": "9e54bb29"
+          },
+          "dirty": [
+            "golden-rust"
+          ]
+        }
+      },
+      {
+        "case": "dirty-is-not-sorted",
+        "schema": "Revision",
+        "why": "the id is derived from the tuple, so an unstable order gives the same commits two different revisions",
+        "error": "dirty is not sorted",
+        "doc": {
+          "id": "bbbb2222-dirty",
+          "createdAt": "2026-08-19T10:00:00Z",
+          "repos": {
+            "golden-go": "9e54bb29",
+            "golden-rust": "a5b26c6a"
+          },
+          "dirty": [
+            "golden-rust",
+            "golden-go"
+          ]
+        }
+      },
+      {
+        "case": "dirty-repeats-a-repo",
+        "schema": "Revision",
+        "why": "a repo is dirty or it is not, and a duplicate changes the derived id without changing the state",
+        "error": "dirty repeats a repo",
+        "doc": {
+          "id": "cccc3333-dirty",
+          "createdAt": "2026-08-19T10:00:00Z",
+          "repos": {
+            "golden-go": "9e54bb29"
+          },
+          "dirty": [
+            "golden-go",
+            "golden-go"
+          ]
+        }
+      },
+      {
+        "case": "dirty-revision-without-the-dirty-suffix",
+        "schema": "Revision",
+        "why": "an uncommitted break must not reuse a passing run, and the suffix is what stops it",
+        "error": "a revision with dirty repos must carry the -dirty suffix",
+        "doc": {
+          "id": "dddd4444",
+          "createdAt": "2026-08-19T10:00:00Z",
+          "repos": {
+            "golden-go": "9e54bb29"
+          },
+          "dirty": [
+            "golden-go"
+          ]
+        }
+      },
+      {
+        "case": "clean-revision-carrying-the-dirty-suffix",
+        "schema": "Revision",
+        "why": "the suffix claims uncommitted work, so a clean revision wearing it can never be reproduced",
+        "error": "a revision with no dirty repos must not carry the -dirty suffix",
+        "doc": {
+          "id": "eeee5555-dirty",
+          "createdAt": "2026-08-19T10:00:00Z",
+          "repos": {
+            "golden-go": "9e54bb29"
+          },
+          "dirty": []
         }
       }
     ]
