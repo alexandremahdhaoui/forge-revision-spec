@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+// DeclareInput What an engine is asked with when it reports what it needs. It carries the engine's own spec block and nothing else, because an engine declares its resources before any record exists to name.
+type DeclareInput struct {
+	// Spec Engine specific configuration. The core model fixes the shape of a revision. Each engine keeps this block for its own internals, so ci-state-git takes a path and a DynamoDB engine takes a table and a region, and nothing in the core model knows about either.
+	Spec *Spec `json:"spec,omitempty"`
+}
+
 // DeclareOutput What an engine needs to exist. An engine with no infrastructure returns an empty list.
 type DeclareOutput struct {
 	Resources []Resource `json:"resources"`

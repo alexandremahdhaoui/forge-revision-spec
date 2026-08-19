@@ -114,6 +114,16 @@ components:
         spec:
           $ref: '#/components/schemas/Spec'
 
+    DeclareInput:
+      type: object
+      description: >-
+        What an engine is asked with when it reports what it needs. It carries
+        the engine's own spec block and nothing else, because an engine declares
+        its resources before any record exists to name.
+      properties:
+        spec:
+          $ref: '#/components/schemas/Spec'
+
     DeclareOutput:
       type: object
       description: What an engine needs to exist. An engine with no infrastructure returns an empty list.
