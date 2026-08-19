@@ -1,0 +1,17 @@
+name: forge-revision-spec
+
+artifactStorePath: .forge/artifact-store.yaml
+
+build:
+  - name: noop
+    src: .
+    engine: go://generic-builder
+    spec:
+      command: "true"
+
+test:
+  - name: vectors
+    runner: go://generic-test-runner
+    spec:
+      command: sh
+      args: ["hack/validate.sh"]

@@ -1,0 +1,434 @@
+{
+  "_comment": [
+    "Conformance vectors for the revision model and the state transport.",
+    "",
+    "schema holds documents that must validate or must not. transport holds",
+    "operation sequences every state engine must satisfy, whatever it stores",
+    "behind. ci-state-git and any future ci-state-dynamodb read THIS file.",
+    "",
+    "The runner injects each engine's own spec into every op. Nothing here",
+    "knows what a path or a table is."
+  ],
+  "schema": {
+    "valid": [
+      {
+        "case": "minimal-revision",
+        "schema": "Revision",
+        "why": "id and createdAt are the only required fields. A pipeline with no repos still has a revision.",
+        "doc": {
+          "id": "a3f9c2",
+          "createdAt": "2026-08-19T10:00:00Z"
+        }
+      },
+      {
+        "case": "revision-with-repos",
+        "schema": "Revision",
+        "why": "the normal case, a tuple of repo commits",
+        "doc": {
+          "id": "a3f9c2",
+          "createdAt": "2026-08-19T10:00:00Z",
+          "repos": {
+            "golden-rust": "a5b26c6a",
+            "golden-go": "9e54bb29"
+          }
+        }
+      },
+      {
+        "case": "dirty-revision",
+        "schema": "Revision",
+        "why": "an uncommitted change is its own revision, or a break is invisible because the passing run gets reused",
+        "doc": {
+          "id": "a3f9c2-dirty",
+          "createdAt": "2026-08-19T10:00:00Z",
+          "repos": {
+            "golden-rust": "a5b26c6a"
+          },
+          "dirty": [
+            "golden-rust"
+          ]
+        }
+      },
+      {
+        "case": "get-input",
+        "schema": "StateGetInput",
+        "why": "key is optional so the same input lists a kind",
+        "doc": {
+          "kind": "revision",
+          "key": "a3f9c2",
+          "spec": {
+            "path": "../golden-state"
+          }
+        }
+      },
+      {
+        "case": "put-input",
+        "schema": "StatePutInput",
+        "why": "payload is a string. A byte array marshals to base64 and the generated MCP schema rejects it.",
+        "doc": {
+          "kind": "run",
+          "key": "a3f9c2/build/default",
+          "payload": "{}"
+        }
+      },
+      {
+        "case": "declare-nothing",
+        "schema": "DeclareOutput",
+        "why": "an engine with no infrastructure returns an empty list, never null",
+        "doc": {
+          "resources": []
+        }
+      }
+    ],
+    "invalid": [
+      {
+        "case": "revision-without-id",
+        "schema": "Revision",
+        "why": "a revision with no id cannot be referenced by a run record",
+        "error": "id",
+        "doc": {
+          "createdAt": "2026-08-19T10:00:00Z"
+        }
+      },
+      {
+        "case": "revision-with-empty-id",
+        "schema": "Revision",
+        "why": "an empty id is worse than a missing one, it silently collides",
+        "error": "id",
+        "doc": {
+          "id": "",
+          "createdAt": "2026-08-19T10:00:00Z"
+        }
+      },
+      {
+        "case": "revision-without-createdat",
+        "schema": "Revision",
+        "why": "without a timestamp there is no ordering between revisions",
+        "error": "createdAt",
+        "doc": {
+          "id": "a3f9c2"
+        }
+      },
+      {
+        "case": "repos-not-strings",
+        "schema": "Revision",
+        "why": "a repo maps to a commit SHA, which is a string",
+        "error": "repos",
+        "doc": {
+          "id": "a",
+          "createdAt": "2026-08-19T10:00:00Z",
+          "repos": {
+            "golden-rust": 42
+          }
+        }
+      },
+      {
+        "case": "get-without-kind",
+        "schema": "StateGetInput",
+        "why": "kind decides where the record lives",
+        "error": "kind",
+        "doc": {
+          "key": "a3f9c2"
+        }
+      },
+      {
+        "case": "put-without-payload",
+        "schema": "StatePutInput",
+        "why": "a put with no body would silently write nothing",
+        "error": "payload",
+        "doc": {
+          "kind": "revision",
+          "key": "abc"
+        }
+      },
+      {
+        "case": "put-payload-as-bytes",
+        "schema": "StatePutInput",
+        "why": "this is the exact shape that broke every state write on the wire while passing in process",
+        "error": "payload",
+        "doc": {
+          "kind": "revision",
+          "key": "abc",
+          "payload": [
+            123,
+            125
+          ]
+        }
+      },
+      {
+        "case": "get-output-without-found",
+        "schema": "StateGetOutput",
+        "why": "found absent is ambiguous with found false, and a caller cannot tell",
+        "error": "found",
+        "doc": {
+          "payload": "{}"
+        }
+      }
+    ]
+  },
+  "transport": [
+    {
+      "case": "put-then-get",
+      "why": "the whole point. What goes in comes back byte identical.",
+      "ops": [
+        {
+          "tool": "put",
+          "in": {
+            "kind": "revision",
+            "key": "abc123",
+            "payload": "{\"id\":\"abc123\"}"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "kind": "revision",
+            "key": "abc123"
+          },
+          "want": {
+            "found": true,
+            "payload": "{\"id\":\"abc123\"}"
+          }
+        }
+      ]
+    },
+    {
+      "case": "missing-is-not-an-error",
+      "why": "a caller asks for the last revision before one exists. That is normal, not a failure.",
+      "ops": [
+        {
+          "tool": "get",
+          "in": {
+            "kind": "revision",
+            "key": "never-written"
+          },
+          "want": {
+            "found": false
+          }
+        }
+      ]
+    },
+    {
+      "case": "overwrite",
+      "why": "a record is replaced, not appended to",
+      "ops": [
+        {
+          "tool": "put",
+          "in": {
+            "kind": "revision",
+            "key": "dup",
+            "payload": "first"
+          }
+        },
+        {
+          "tool": "put",
+          "in": {
+            "kind": "revision",
+            "key": "dup",
+            "payload": "second"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "kind": "revision",
+            "key": "dup"
+          },
+          "want": {
+            "found": true,
+            "payload": "second"
+          }
+        }
+      ]
+    },
+    {
+      "case": "nested-keys",
+      "why": "a run key is revision, stage and substage. The separator must survive.",
+      "ops": [
+        {
+          "tool": "put",
+          "in": {
+            "kind": "run",
+            "key": "rev1/build/default",
+            "payload": "{}"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "kind": "run",
+            "key": "rev1/build/default"
+          },
+          "want": {
+            "found": true,
+            "payload": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "case": "list-under-a-prefix",
+      "why": "listing the substages of a stage is how status reads a whole stage",
+      "ops": [
+        {
+          "tool": "put",
+          "in": {
+            "kind": "run",
+            "key": "rev2/build/one",
+            "payload": "{}"
+          }
+        },
+        {
+          "tool": "put",
+          "in": {
+            "kind": "run",
+            "key": "rev2/build/two",
+            "payload": "{}"
+          }
+        },
+        {
+          "tool": "list",
+          "in": {
+            "kind": "run",
+            "key": "rev2/build"
+          },
+          "want": {
+            "keys": [
+              "one",
+              "two"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case": "list-of-nothing-is-empty",
+      "why": "an empty store is the first thing every pipeline meets. It must not error.",
+      "ops": [
+        {
+          "tool": "list",
+          "in": {
+            "kind": "revision"
+          },
+          "want": {
+            "keys": []
+          }
+        }
+      ]
+    },
+    {
+      "case": "a-key-cannot-escape",
+      "why": "a key comes from a revision id, and a crafted one must not write outside the store",
+      "ops": [
+        {
+          "tool": "put",
+          "in": {
+            "kind": "revision",
+            "key": "../../escape",
+            "payload": "x"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "kind": "revision",
+            "key": "escape"
+          },
+          "want": {
+            "found": true,
+            "payload": "x"
+          }
+        }
+      ]
+    },
+    {
+      "case": "unknown-kind-is-an-error",
+      "why": "a typo in a kind must not silently create a new record family",
+      "ops": [
+        {
+          "tool": "get",
+          "in": {
+            "kind": "banana",
+            "key": "a"
+          },
+          "wantError": "kind"
+        }
+      ]
+    },
+    {
+      "case": "a-key-is-required-to-read",
+      "why": "get with no key is ambiguous with list, and guessing is worse than refusing",
+      "ops": [
+        {
+          "tool": "get",
+          "in": {
+            "kind": "revision"
+          },
+          "wantError": "key"
+        }
+      ]
+    },
+    {
+      "case": "every-kind-round-trips",
+      "why": "revision, run and owned are the three kinds forge-ci uses today",
+      "ops": [
+        {
+          "tool": "put",
+          "in": {
+            "kind": "revision",
+            "key": "k",
+            "payload": "r"
+          }
+        },
+        {
+          "tool": "put",
+          "in": {
+            "kind": "run",
+            "key": "k",
+            "payload": "u"
+          }
+        },
+        {
+          "tool": "put",
+          "in": {
+            "kind": "owned",
+            "key": "k",
+            "payload": "o"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "kind": "revision",
+            "key": "k"
+          },
+          "want": {
+            "found": true,
+            "payload": "r"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "kind": "run",
+            "key": "k"
+          },
+          "want": {
+            "found": true,
+            "payload": "u"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "kind": "owned",
+            "key": "k"
+          },
+          "want": {
+            "found": true,
+            "payload": "o"
+          }
+        }
+      ]
+    }
+  ]
+}

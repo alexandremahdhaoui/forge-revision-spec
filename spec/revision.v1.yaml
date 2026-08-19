@@ -1,0 +1,125 @@
+openapi: 3.0.3
+
+info:
+  title: forge revision and state transport
+  version: 1.0.0
+  description: >-
+    The Revision model and the get, put and list transport that every state
+    engine implements. forge-ci writes revisions. forge-factory reads them.
+    Neither depends on the other, they depend on this.
+
+components:
+  schemas:
+    Spec:
+      type: object
+      additionalProperties: true
+      description: >-
+        Engine specific configuration. The core model fixes the shape of a
+        revision. Each engine keeps this block for its own internals, so
+        ci-state-git takes a path and a DynamoDB engine takes a table and a
+        region, and nothing in the core model knows about either.
+
+    Revision:
+      type: object
+      description: >-
+        A tuple of repo commits at a moment in time. The id is derived from the
+        tuple, so the same commits always give the same revision.
+      required: [id, createdAt]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: >-
+            Content derived identifier. Suffixed with -dirty when any repo has
+            uncommitted changes, because an uncommitted break must not reuse a
+            passing run.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the revision was resolved.
+        repos:
+          type: object
+          additionalProperties:
+            type: string
+          description: Repo name to commit SHA. Empty when the pipeline declares no repos.
+        dirty:
+          type: array
+          items:
+            type: string
+          description: Repos with uncommitted changes, sorted.
+
+    StateGetInput:
+      type: object
+      description: Read one record, or list under one kind when key is a prefix.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          description: The record family. revision, run or owned.
+        key:
+          type: string
+          description: Identifies the record within its kind. Nested keys use slashes.
+        spec:
+          $ref: '#/components/schemas/Spec'
+
+    StatePutInput:
+      type: object
+      description: Write one record.
+      required: [kind, key, payload]
+      properties:
+        kind:
+          type: string
+        key:
+          type: string
+        payload:
+          type: string
+          description: >-
+            The record body. A string, not bytes. A byte array marshals to
+            base64 and the generated MCP schema rejects it, which broke every
+            state write while passing in process.
+        spec:
+          $ref: '#/components/schemas/Spec'
+
+    StateGetOutput:
+      type: object
+      description: The result of a read. A missing record is found false, never an error.
+      required: [found]
+      properties:
+        found:
+          type: boolean
+        payload:
+          type: string
+
+    StateListOutput:
+      type: object
+      description: The keys under one kind.
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            type: string
+
+    Resource:
+      type: object
+      description: Something an engine needs to exist. Declared by engines, realized by managers.
+      required: [kind, name]
+      properties:
+        kind:
+          type: string
+          description: Resource kind, for example directory or table.
+        name:
+          type: string
+          description: Unique name within the kind.
+        spec:
+          $ref: '#/components/schemas/Spec'
+
+    DeclareOutput:
+      type: object
+      description: What an engine needs to exist. An engine with no infrastructure returns an empty list.
+      required: [resources]
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Resource'
