@@ -118,11 +118,17 @@ components:
       type: object
       description: >-
         What an engine is asked with when it reports what it needs. It carries
-        the engine's own spec block and nothing else, because an engine declares
-        its resources before any record exists to name.
+        the engine's own spec block and the pipeline root, because an engine
+        declares its resources before any record exists to name.
       properties:
         spec:
           $ref: '#/components/schemas/Spec'
+        root:
+          type: string
+          description: >-
+            The pipeline root on the local filesystem, for an engine whose
+            spec names workspace files to read at declare time. Optional, so
+            an engine that reads nothing keeps validating without it.
 
     DeclareOutput:
       type: object
