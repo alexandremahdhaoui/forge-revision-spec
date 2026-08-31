@@ -515,6 +515,45 @@
           }
         }
       ]
+    },
+    {
+      "case": "a-caller-defined-kind-round-trips",
+      "why": "the store carries record families it never learns the meaning of: spec.kinds names them, and a dependency-lock record - a whole lockfile as one string payload, beside the hash that verifies it - is the live case. A payload is a string; a byte array marshals to base64 and the generated MCP schema refuses it, and a lockfile is exactly the payload big enough to tempt someone.",
+      "ops": [
+        {
+          "tool": "put",
+          "in": {
+            "spec": {
+              "kinds": ["dependency-lock"]
+            },
+            "kind": "dependency-lock",
+            "key": "rev123/repo-a/go.sum",
+            "payload": "{\"revision\":\"rev123\",\"path\":\"repo-a/go.sum\",\"sha256\":\"aa\",\"lockfile\":\"example.com/mod v1.2.3 h1:x\\n\"}"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "spec": {
+              "kinds": ["dependency-lock"]
+            },
+            "kind": "dependency-lock",
+            "key": "rev123/repo-a/go.sum"
+          },
+          "want": {
+            "found": true,
+            "payload": "{\"revision\":\"rev123\",\"path\":\"repo-a/go.sum\",\"sha256\":\"aa\",\"lockfile\":\"example.com/mod v1.2.3 h1:x\\n\"}"
+          }
+        },
+        {
+          "tool": "get",
+          "in": {
+            "kind": "dependency-lock",
+            "key": "rev123/repo-a/go.sum"
+          },
+          "wantError": "kind"
+        }
+      ]
     }
   ]
 }
