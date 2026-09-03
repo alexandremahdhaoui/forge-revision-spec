@@ -129,6 +129,26 @@ components:
             The pipeline root on the local filesystem, for an engine whose
             spec names workspace files to read at declare time. Optional, so
             an engine that reads nothing keeps validating without it.
+        stages:
+          type: array
+          description: >-
+            The pipeline's stages by name, each with its substages, for a
+            compute engine that renders the run as jobs. A state engine
+            ignores them; they are here so the one declare input the core
+            sends validates against every engine's schema.
+          items:
+            $ref: '#/components/schemas/DeclaredStage'
+
+    DeclaredStage:
+      type: object
+      description: One stage of the pipeline, by name, with its substage names.
+      required: [name]
+      properties:
+        name:
+          type: string
+        substages:
+          type: array
+          items: {type: string}
 
     DeclareOutput:
       type: object
