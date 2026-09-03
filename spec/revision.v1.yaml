@@ -141,14 +141,34 @@ components:
 
     DeclaredStage:
       type: object
-      description: One stage of the pipeline, by name, with its substage names.
+      description: One stage of the pipeline, by name, with its substages.
       required: [name]
       properties:
         name:
           type: string
+        displayName:
+          type: string
+          description: >-
+            What to call this stage where a person reads it. Absent means the
+            caller derives a title from the name, so a pipeline that says
+            nothing still reads as words rather than as an identifier.
         substages:
           type: array
-          items: {type: string}
+          items:
+            $ref: '#/components/schemas/DeclaredSubstage'
+
+    DeclaredSubstage:
+      type: object
+      description: One substage of a stage, by name.
+      required: [name]
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+          description: >-
+            What to call this substage where a person reads it. Absent means
+            the caller derives a title from the stage and substage names.
 
     DeclareOutput:
       type: object
