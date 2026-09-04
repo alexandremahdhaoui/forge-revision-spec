@@ -169,6 +169,14 @@ components:
           description: >-
             What to call this substage where a person reads it. Absent means
             the caller derives a title from the stage and substage names.
+        needs:
+          type: array
+          items:
+            type: string
+          description: >-
+            Substages of the same stage that must advance before this one
+            runs, for a compute engine that renders one job per substage and
+            has to wire the order between them. Absent means none.
 
     DeclareOutput:
       type: object
