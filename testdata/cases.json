@@ -80,6 +80,50 @@
         "doc": {
           "resources": []
         }
+      },
+      {
+        "case": "declare-with-stages-and-repos",
+        "schema": "DeclareInput",
+        "why": "a compute engine that renders jobs is told the stages, what each substage needs and uses, and the repositories the run is built from; a state engine is handed the same input and ignores them",
+        "doc": {
+          "spec": {},
+          "root": "/work",
+          "stages": [
+            {
+              "name": "build",
+              "substages": [
+                {
+                  "name": "build-artifacts"
+                },
+                {
+                  "name": "package",
+                  "needs": [
+                    "build-artifacts"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "release",
+              "substages": [
+                {
+                  "name": "release-artifacts",
+                  "uses": [
+                    "build/build-artifacts"
+                  ]
+                }
+              ]
+            }
+          ],
+          "repos": [
+            {
+              "name": "forge"
+            },
+            {
+              "name": "forge-ci"
+            }
+          ]
+        }
       }
     ],
     "invalid": [
@@ -164,6 +208,17 @@
         "error": "found",
         "doc": {
           "payload": "{}"
+        }
+      },
+      {
+        "case": "declare-repo-without-name",
+        "schema": "DeclareInput",
+        "why": "a repository is named by the directory it is checked out under; one with no name keys no cache",
+        "doc": {
+          "spec": {},
+          "repos": [
+            {}
+          ]
         }
       }
     ],
@@ -524,7 +579,9 @@
           "tool": "put",
           "in": {
             "spec": {
-              "kinds": ["dependency-lock"]
+              "kinds": [
+                "dependency-lock"
+              ]
             },
             "kind": "dependency-lock",
             "key": "rev123/repo-a/go.sum",
@@ -535,7 +592,9 @@
           "tool": "get",
           "in": {
             "spec": {
-              "kinds": ["dependency-lock"]
+              "kinds": [
+                "dependency-lock"
+              ]
             },
             "kind": "dependency-lock",
             "key": "rev123/repo-a/go.sum"

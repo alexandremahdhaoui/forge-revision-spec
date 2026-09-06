@@ -7,15 +7,50 @@ import (
 	"time"
 )
 
-// DeclareInput What an engine is asked with when it reports what it needs. It carries the engine's own spec block and nothing else, because an engine declares its resources before any record exists to name.
+// DeclareInput What an engine is asked with when it reports what it needs. It carries the engine's own spec block and the pipeline root, because an engine declares its resources before any record exists to name.
 type DeclareInput struct {
+	// Repos The pipeline's repositories by name, each a directory under the root, for a compute engine that keys a cache on what the run is built from - the same repositories the revision hashes. A state engine ignores them.
+	Repos *[]DeclaredRepo `json:"repos,omitempty"`
+
+	// Root The pipeline root on the local filesystem, for an engine whose spec names workspace files to read at declare time. Optional, so an engine that reads nothing keeps validating without it.
+	Root *string `json:"root,omitempty"`
+
 	// Spec Engine specific configuration. The core model fixes the shape of a revision. Each engine keeps this block for its own internals, so ci-state-git takes a path and a DynamoDB engine takes a table and a region, and nothing in the core model knows about either.
 	Spec *Spec `json:"spec,omitempty"`
+
+	// Stages The pipeline's stages by name, each with its substages, for a compute engine that renders the run as jobs. A state engine ignores them; they are here so the one declare input the core sends validates against every engine's schema.
+	Stages *[]DeclaredStage `json:"stages,omitempty"`
 }
 
 // DeclareOutput What an engine needs to exist. An engine with no infrastructure returns an empty list.
 type DeclareOutput struct {
 	Resources []Resource `json:"resources"`
+}
+
+// DeclaredRepo One repository of the pipeline, by the directory name it is checked out under.
+type DeclaredRepo struct {
+	Name string `json:"name"`
+}
+
+// DeclaredStage One stage of the pipeline, by name, with its substages.
+type DeclaredStage struct {
+	// DisplayName What to call this stage where a person reads it. Absent means the caller derives a title from the name, so a pipeline that says nothing still reads as words rather than as an identifier.
+	DisplayName *string             `json:"displayName,omitempty"`
+	Name        string              `json:"name"`
+	Substages   *[]DeclaredSubstage `json:"substages,omitempty"`
+}
+
+// DeclaredSubstage One substage of a stage, by name.
+type DeclaredSubstage struct {
+	// DisplayName What to call this substage where a person reads it. Absent means the caller derives a title from the stage and substage names.
+	DisplayName *string `json:"displayName,omitempty"`
+	Name        string  `json:"name"`
+
+	// Needs Substages of the same stage that must advance before this one runs, for a compute engine that renders one job per substage and has to wire the order between them. Absent means none.
+	Needs *[]string `json:"needs,omitempty"`
+
+	// Uses Substages of EARLIER stages, as <stage>/<substage>, whose built artifacts this one reads, for a compute engine that carries files between jobs and can then carry only these. Absent means everything every earlier stage built.
+	Uses *[]string `json:"uses,omitempty"`
 }
 
 // Resource Something an engine needs to exist. Declared by engines, realized by managers.

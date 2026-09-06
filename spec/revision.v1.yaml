@@ -138,6 +138,23 @@ components:
             sends validates against every engine's schema.
           items:
             $ref: '#/components/schemas/DeclaredStage'
+        repos:
+          type: array
+          description: >-
+            The pipeline's repositories by name, each a directory under the
+            root, for a compute engine that keys a cache on what the run is
+            built from - the same repositories the revision hashes. A state
+            engine ignores them.
+          items:
+            $ref: '#/components/schemas/DeclaredRepo'
+
+    DeclaredRepo:
+      type: object
+      description: One repository of the pipeline, by the directory name it is checked out under.
+      required: [name]
+      properties:
+        name:
+          type: string
 
     DeclaredStage:
       type: object
@@ -177,6 +194,15 @@ components:
             Substages of the same stage that must advance before this one
             runs, for a compute engine that renders one job per substage and
             has to wire the order between them. Absent means none.
+        uses:
+          type: array
+          items:
+            type: string
+          description: >-
+            Substages of EARLIER stages, as <stage>/<substage>, whose built
+            artifacts this one reads, for a compute engine that carries
+            files between jobs and can then carry only these. Absent means
+            everything every earlier stage built.
 
     DeclareOutput:
       type: object
